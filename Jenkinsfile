@@ -1,17 +1,19 @@
-// Jenkinsfile (Declarative Pipeline) — copy/paste this whole file.
-// Adjust tool names ('MAVEN3', 'JDK17', 'sonarscanner') and the Sonar server name ('sonarserver') to match your Jenkins setup.
+// Jenkinsfile (Declarative Pipeline)
+// Adjust tool names ('MAVEN3', 'JDK17', 'sonarscanner') and Sonar server name ('sonarserver') to match your Jenkins.
 
 pipeline {
   agent any
 
   options {
-    skipDefaultCheckout(true)  // we'll do an explicit checkout stage
-    ansiColor('xterm')
+    skipDefaultCheckout(true)
+    timestamps()
+    // Use wrap() instead of ansiColor option (plugin compatibility)
+    wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm'])
   }
 
   tools {
     maven 'MAVEN3'   // Manage Jenkins -> Global Tool Configuration
-    jdk    'JDK17'   // Manage Jenkins -> Global Tool Configuration
+    jdk   'JDK17'    // Manage Jenkins -> Global Tool Configuration
   }
 
   environment {
@@ -51,7 +53,7 @@ pipeline {
         withSonarQubeEnv("${SONARSERVER}") {
           script { env.SCANNER_HOME = tool "${SCANNER_TOOL}" }
           sh """
-            "${SCANNER_HOME}/bin/sonar-scanner" \
+            "\${SCANNER_HOME}/bin/sonar-scanner" \
               -Dsonar.projectKey=vprofile \
               -Dsonar.projectName=vprofile \
               -Dsonar.projectVersion=1.0 \
