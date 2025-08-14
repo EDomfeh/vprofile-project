@@ -1,5 +1,5 @@
 // Jenkinsfile (Declarative Pipeline)
-// Adjust tool names ('MAVEN3', 'JDK17', 'sonarscanner') and Sonar server name ('sonarserver') to match your Jenkins.
+// Adjust tool names ('MAVEN3', 'JDK17', 'sonarscanner') and Sonar server ('sonarserver') to match your Jenkins.
 
 pipeline {
   agent any
@@ -7,8 +7,6 @@ pipeline {
   options {
     skipDefaultCheckout(true)
     timestamps()
-    // Use wrap() instead of ansiColor option (plugin compatibility)
-    wrap([$class: 'AnsiColorBuildWrapper', colorMapName: 'xterm'])
   }
 
   tools {
@@ -31,7 +29,7 @@ pipeline {
 
     stage('Build & Test') {
       steps {
-        // Runs compile, tests, and generates JaCoCo XML at target/site/jacoco/jacoco.xml
+        // Runs compile, tests, and generates JaCoCo XML at target/site/jacoco/jacoco.xml (if configured in pom.xml)
         sh 'mvn -s settings.xml -B clean verify'
       }
       post {
