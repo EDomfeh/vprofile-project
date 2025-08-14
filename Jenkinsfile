@@ -1,72 +1,76 @@
-pipeline {
-    agent any
-    tools {
-        maven "MAVEN3"
-        jdk "JDK17"
-    }
-    
-    environment {
-        SNAP_REPO = 'vprofile-snapshot'
-		NEXUS_USER = 'admin'
-		NEXUS_PASS = 'admin123'
-		RELEASE_REPO = 'vprofile-release'
-		CENTRAL_REPO = 'vpro-maven-central'
-		NEXUSIP = '172.31.36.114'
-		NEXUSPORT = '8081'
-		NEXUS_GRP_REPO = 'vpro-maven-group'
-        NEXUS_LOGIN = 'nexuslogin'
-        SONARSERVER = 'sonarserver'
-        SONARSCANNER = 'sonarscanner'
-    }
+// Jenkinsfile (Declarative Pipeline) — copy/paste this whole file.
+// Adjust tool names ('MAVEN3', 'JDK17', 'sonarscanner') and the Sonar server name ('sonarserver') to match your Jenkins setup.
 
-    stages {
-        stage('Build'){
-            steps {
-                sh 'mvn -s settings.xml -DskipTests install'
-            }
-            post {
-                success {
-                    echo "Now Archiving."
-                    archiveArtifacts artifacts: '**/*.war'
-                }
-            }
-        }
-        stage('Test'){
-            steps {
-                sh 'mvn -s settings.xml test'
-            }
-        }
-        stage('Checkstyle Analysis'){
-            steps {
-                sh 'mvn -s settings.xml checkstyle:checkstyle'
-        }
-    }
-        stage('Sonar Analysis') {
-          steps {
-            withSonarQubeEnv('sonarserver') {                 
-              script {
-                def scannerHome = tool 'sonarscanner'         
-                sh """
-              "\${scannerHome}/bin/sonar-scanner" \
-            -Dsonar.projectKey=vprofile \
-            -Dsonar.projectName=vprofile \
-            -Dsonar.projectVersion=1.0 \
-            -Dsonar.sources=src \
-            -Dsonar.java.binaries=target/classes,target/test-classes \
-            -Dsonar.junit.reportPaths=target/surefire-reports \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
-        """
+pipeline {
+  agent any
+
+  options {
+    skipDefaultCheckout(true)  // we'll do an explicit checkout stage
+    ansiColor('xterm')
+  }
+
+  tools {
+    maven 'MAVEN3'   // Manage Jenkins -> Global Tool Configuration
+    jdk    'JDK17'   // Manage Jenkins -> Global Tool Configuration
+  }
+
+  environment {
+    SONARSERVER  = 'sonarserver'   // Manage Jenkins -> System (SonarQube servers)
+    SCANNER_TOOL = 'sonarscanner'  // Name of SonarScanner tool in Global Tool Configuration
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        checkout scm
       }
     }
-  }
-}
 
-        stage('Quality Gate') {
-          steps {
-            timeout(time: 2, unit: 'MINUTES') {
-              waitForQualityGate abortPipeline: true
+    stage('Build & Test') {
+      steps {
+        // Runs compile, tests, and generates JaCoCo XML at target/site/jacoco/jacoco.xml
+        sh 'mvn -s settings.xml -B clean verify'
+      }
+      post {
+        success {
+          echo 'Now Archiving.'
+          archiveArtifacts artifacts: 'target/*.war', fingerprint: true, allowEmptyArchive: false
+        }
+      }
     }
+
+    stage('Checkstyle Analysis') {
+      steps {
+        sh 'mvn -s settings.xml -B checkstyle:checkstyle'
+      }
+    }
+
+    stage('Sonar Analysis') {
+      steps {
+        withSonarQubeEnv("${SONARSERVER}") {
+          script { env.SCANNER_HOME = tool "${SCANNER_TOOL}" }
+          sh """
+            "${SCANNER_HOME}/bin/sonar-scanner" \
+              -Dsonar.projectKey=vprofile \
+              -Dsonar.projectName=vprofile \
+              -Dsonar.projectVersion=1.0 \
+              -Dsonar.sources=src \
+              -Dsonar.java.binaries=target/classes,target/test-classes \
+              -Dsonar.junit.reportPaths=target/surefire-reports \
+              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+          """
+        }
+      }
+    }
+
+    stage('Quality Gate') {
+      steps {
+        timeout(time: 2, unit: 'MINUTES') {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
   }
 }
-    
-    }
